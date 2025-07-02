@@ -7,6 +7,7 @@ import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -55,7 +56,8 @@ public class JsonArchivoService {
                     String nombreArchivo = archivo.getPath().getName().replace(".json", "");
 
                     // 3. Parsear contenido a lista de objetos (puede ser Map o List)
-                    Object jsonData = mapper.readValue(contenido.toString(), new TypeReference<Object>() {});
+                    Object jsonData = mapper.readValue(contenido.toString(), new TypeReference<Object>() {
+                    });
 
                     // 4. Guardar en el mapa
                     jsonMap.put(nombreArchivo, jsonData);
@@ -70,4 +72,32 @@ public class JsonArchivoService {
 
         return jsonMap;
     }
+
+    public void guardarJsonEnHDFS(String nombreArchivo, Object contenidoJson) {
+        try {
+            Configuration conf = new Configuration();
+            conf.set("fs.defaultFS", hdfsUrl);
+            FileSystem fs = FileSystem.get(conf);
+
+            if (!nombreArchivo.endsWith(".json")) {
+                nombreArchivo += ".json";
+            }
+
+            Path pathArchivo = new Path(hdfsBasePath + "/" + nombreArchivo);
+            FSDataOutputStream out = fs.create(pathArchivo, true);
+
+            // Serializar el contenido como JSON válido
+            ObjectMapper mapper = new ObjectMapper();
+            String jsonFormateado = mapper.writeValueAsString(contenidoJson);
+
+            // Escribir el contenido limpio (como texto plano, no binario UTF)
+            out.writeBytes(jsonFormateado);
+            out.close();
+            fs.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error al guardar el archivo JSON en HDFS", e);
+        }
+    }
+
 }
