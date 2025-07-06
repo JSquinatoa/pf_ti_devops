@@ -2,7 +2,11 @@ package Service;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
@@ -15,6 +19,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.io.IOUtils;
 
 import jakarta.enterprise.context.ApplicationScoped;
 
@@ -27,7 +32,7 @@ public class JsonArchivoService {
     @ConfigProperty(name = "hdfs.base.path")
     String hdfsBasePath;
 
-    public Map<String, Object> leerJsonsDesdeHDFS() {
+    public Map<String, Object> ObtenerTodosLosJson() {
         Map<String, Object> jsonMap = new HashMap<>();
         ObjectMapper mapper = new ObjectMapper();
 
@@ -97,6 +102,58 @@ public class JsonArchivoService {
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("Error al guardar el archivo JSON en HDFS", e);
+        }
+    }
+
+    public List<String> obtenerNombresDeArchivosJson() {
+        List<String> nombres = new ArrayList<>();
+
+        try {
+            Configuration conf = new Configuration();
+            conf.set("fs.defaultFS", hdfsUrl);
+
+            FileSystem fs = FileSystem.get(new URI(hdfsUrl), conf);
+
+            Path path = new Path(hdfsBasePath);
+            if (!fs.exists(path)) {
+                throw new RuntimeException("La ruta base no existe: " + hdfsBasePath);
+            }
+
+            FileStatus[] archivos = fs.listStatus(path);
+
+            for (FileStatus archivo : archivos) {
+                if (archivo.isFile()) {
+                    nombres.add(archivo.getPath().getName());
+                }
+            }
+
+            fs.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error al obtener los nombres de los archivos JSON en HDFS", e);
+        }
+
+        return nombres;
+    }
+
+    public String ObtenerJsonPorNombre(String nombreArchivo) {
+        try {
+            Configuration conf = new Configuration();
+            conf.set("fs.defaultFS", hdfsUrl);
+
+            FileSystem fs = FileSystem.get(new URI(hdfsUrl), conf);
+            Path pathArchivo = new Path(hdfsBasePath + "/" + nombreArchivo);
+
+            if (!fs.exists(pathArchivo)) {
+                throw new RuntimeException("El archivo no existe: " + nombreArchivo);
+            }
+
+            try (FSDataInputStream inputStream = fs.open(pathArchivo)) {
+                return IOUtils.toString(inputStream, StandardCharsets.UTF_8);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error al leer el archivo JSON en HDFS", e);
         }
     }
 

@@ -1,5 +1,6 @@
 package Controller;
 
+import java.util.List;
 import java.util.Map;
 
 import Service.JsonArchivoService;
@@ -8,6 +9,7 @@ import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -19,9 +21,31 @@ public class JsonArchivoController {
     JsonArchivoService jsonArchivoService;
 
     @GET
+    @Path("")
     @Produces(MediaType.APPLICATION_JSON)
     public Map<String, Object> obtenerJson() {
-        return jsonArchivoService.leerJsonsDesdeHDFS();
+        return jsonArchivoService.ObtenerTodosLosJson();
+    }
+
+    @GET
+    @Path("/catalogoarchivos")
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<String> obtenerNombresDeArchivos() {
+        return jsonArchivoService.obtenerNombresDeArchivosJson();
+    }
+
+    @GET
+    @Path("/{nombreArchivo}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response obtenerContenidoArchivo(@PathParam("nombreArchivo") String nombreArchivo) {
+        try {
+            String contenido = jsonArchivoService.ObtenerJsonPorNombre(nombreArchivo);
+            return Response.ok(contenido).build();
+        } catch (RuntimeException e) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("Archivo no encontrado o error al leerlo: " + nombreArchivo)
+                    .build();
+        }
     }
 
     @POST
